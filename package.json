@@ -63,8 +63,8 @@
     "publish-packages": "changeset publish",
     "clean": "shx rm -rf node_modules dist"
   },
+  "packageManager": "pnpm@8.15.6",
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   }
 }

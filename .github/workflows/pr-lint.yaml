@@ -43,8 +43,7 @@ jobs:
             release
             hotfix
           scopes: |
-            cds-plugin-langgraph
-            langgraph-checkpoint-cds
+            cds-langgraph-persistence
             docs
             examples
             internal

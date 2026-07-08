@@ -19,7 +19,7 @@ export default defineConfig({
     minify: false, // disable since this is a node library
     lib: {
       entry: "src/index.ts",
-      name: "@mi8y/cds-plugin-langgraph",
+      name: "@mi8y/cds-langgraph-persistence",
       fileName: "index",
       formats: ["es", "cjs"],
     },
