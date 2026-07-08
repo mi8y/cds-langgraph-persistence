@@ -1,0 +1,72 @@
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+# and
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+
+    groups:
+      # Internal LangChain packages
+      langchain:
+        patterns:
+          - "@langchain/*"
+          - "langchain"
+
+      # Vite, Vitest, and build tools
+      vite-vitest-turbo:
+        patterns:
+          - "vite"
+          - "vite-*"
+          - "vitest"
+          - "vitest-*"
+          - "@vitest/*"
+          - "rollup"
+          - "esbuild"
+          - "esbuild-*"
+          - "turbo"
+
+      # TypeScript, ESLint, and formatting
+      typescript-eslint-prettier:
+        patterns:
+          - "typescript"
+          - "@typescript-eslint/*"
+          - "@tsconfig/*"
+          - "eslint"
+          - "eslint-*"
+          - "@eslint/*"
+          - "prettier"
+
+      # SAP
+      sap:
+        patterns:
+          - "@sap/*"
+          - "@cap-js/*"
+
+      # Maintenance
+      cli-tools:
+        patterns:
+          - "@changesets/*"
+
+      # Type definitions
+      types:
+        patterns:
+          - "@types/*"
+
+      # Everything else — minor and patch together, major separately
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+      major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"

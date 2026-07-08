@@ -1,0 +1,3 @@
+allowBuilds:
+  tree-sitter: false
+  tree-sitter-java: false
