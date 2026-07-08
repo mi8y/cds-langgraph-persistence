@@ -59,7 +59,7 @@
     "format": "prettier --write \"**/*.{json,ts,js,mjs,cjs,md}\"",
     "format:check": "prettier --check \"**/*.{json,ts,js,mjs,cjs,md}\"",
     "changeset": "changeset",
-    "version-packages": "changeset version && pnpm install --no-frozen-lockfile && pnpm run format",
+    "version-packages": "changeset version && pnpm run format",
     "publish-packages": "changeset publish",
     "clean": "shx rm -rf node_modules dist"
   },
