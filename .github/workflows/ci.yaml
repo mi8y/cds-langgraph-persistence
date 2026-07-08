@@ -95,7 +95,7 @@ jobs:
         run: pnpm build
 
       - name: Create build archive
-        run: tar -czf build-artifacts.tar.gz dist
+        run: tar -czf build-artifacts.tar.gz ./dist ./@cds-models
 
       - name: Publish to pkg.pr.new
         if: ${{ github.event_name == 'pull_request' }}
