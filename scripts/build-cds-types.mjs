@@ -1,7 +1,9 @@
 import path from "path";
 import shell from "shelljs";
 
-const ROOT = path.resolve(path.join(path.dirname(new URL(import.meta.url).pathname), ".."));
+const ROOT = path.resolve(
+  path.join(path.dirname(new URL(import.meta.url).pathname), ".."),
+);
 const OUT_DIR = path.join(ROOT, "@cds-models");
 const TMP_CJS = path.join(ROOT, "tmp/cds-cjs");
 const TMP_ESM = path.join(ROOT, "tmp/cds-esm");
