@@ -22,6 +22,22 @@
       "require": "./dist/index.js"
     }
   },
+  "files": [
+    "dist/**/*",
+    "LICENSE",
+    "package.json",
+    "README.md"
+  ],
+  "keywords": [
+    "sap",
+    "cap",
+    "cds",
+    "agent",
+    "langgraph",
+    "langchain",
+    "deepagents",
+    "checkpointer"
+  ],
   "dependencies": {
     "@langchain/langgraph-checkpoint": "^1.1.3"
   },
