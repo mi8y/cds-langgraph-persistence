@@ -1,0 +1,35 @@
+name: codeql-analysis
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  analyze:
+    name: analyze code with CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+
+    steps:
+    - name: checkout repository
+      uses: actions/checkout@v4
+
+    - name: initialize codeql
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript-typescript
+        config-file: .github/codeql/codeql-config.yml
+        build-mode: none 
+
+    - name: perform codeql analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:javascript-typescript"
