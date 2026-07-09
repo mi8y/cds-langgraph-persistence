@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 import cds from "@sap/eslint-plugin-cds";
 
 export default defineConfig({
-  files: ["src/**/*.{js,ts}", "**/*.cds"],
+  files: ["src/**/*.{js,ts}", "*.cds"],
   extends: [
     js.configs.recommended,
     tseslint.configs.recommended,
