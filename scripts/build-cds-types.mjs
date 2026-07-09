@@ -13,18 +13,28 @@ shell.rm("-rf", OUT_DIR, TMP_CJS, TMP_ESM);
 
 // Generate CJS
 shell.cd(ROOT);
-let result = shell.exec(
-  `npx cds-typer --targetModuleType cjs --outputDirectory ${TMP_CJS} ${CDS_FILE}`,
-);
+let result = shell.execFile("npx", [
+  "cds-typer",
+  "--targetModuleType",
+  "cjs",
+  "--outputDirectory",
+  TMP_CJS,
+  CDS_FILE,
+]);
 if (result.code !== 0) {
   shell.echo("Error: CJS cds-typer failed");
   shell.exit(1);
 }
 
 // Generate ESM
-result = shell.exec(
-  `npx cds-typer --targetModuleType esm --outputDirectory ${TMP_ESM} ${CDS_FILE}`,
-);
+result = shell.execFile("npx", [
+  "cds-typer",
+  "--targetModuleType",
+  "esm",
+  "--outputDirectory",
+  TMP_ESM,
+  CDS_FILE,
+]);
 if (result.code !== 0) {
   shell.echo("Error: ESM cds-typer failed");
   shell.exit(1);
