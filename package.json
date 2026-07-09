@@ -65,6 +65,11 @@
   "peerDependencies": {
     "@sap/cds": ">=8"
   },
+  "peerDependenciesMeta": {
+    "@sap/cds": {
+      "optional": false
+    }
+  },
   "scripts": {
     "dev": "npm run build:cds-types && vite build --watch",
     "build": "shx rm -rf dist && npm run build:cds-types && vite build",
