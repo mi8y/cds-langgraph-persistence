@@ -1,8 +1,0 @@
-name: "Custom CodeQL Configuration"
-
-paths-ignore:
-  - '**/node_modules/**'
-  - '**/tests/**'
-  - '**/dist/**'
-  - 'docs/**'
-  - 'scripts/**'
