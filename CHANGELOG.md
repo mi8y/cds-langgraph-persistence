@@ -1,5 +1,11 @@
 # @mi8y/cds-langgraph-persistence
 
+## 0.1.0
+
+### Minor Changes
+
+- b630ad0: Add support for CDS v9 & v10 with tests
+
 ## 0.0.3
 
 ### Patch Changes
