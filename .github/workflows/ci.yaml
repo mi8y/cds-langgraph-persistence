@@ -206,8 +206,12 @@ jobs:
 
       - name: CDS Info
         shell: bash
-        run: pnpm exec cds version --info
+        run: |
+          cd tests/integration
+          pnpm exec cds version --info
 
       - name: Run integration tests
         shell: bash
-        run: pnpm test
+        run: |
+          cd tests/integration
+          pnpm test
