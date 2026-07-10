@@ -202,7 +202,7 @@ jobs:
           pnpm add @sap/cds@${{ matrix.cap-version[0] }}
           pnpm add -D @cap-js/sqlite@${{ matrix.cap-version[1] }}
           pnpm add -D @cap-js/cds-test@${{ matrix.cap-version[2] }}
-          pnpm add -g @sap/cds-dk@${{ matrix.cap-version[0] }}
+          pnpm add -D @sap/cds-dk@${{ matrix.cap-version[0] }}
 
       - name: CDS Info
         shell: bash

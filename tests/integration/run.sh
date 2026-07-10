@@ -29,15 +29,6 @@ echo "Installing / using Node.js ${NODE_VERSION}..."
 nvm install "$NODE_VERSION" --no-progress 2>/dev/null || true
 nvm use "$NODE_VERSION"
 
-# --- pnpm (use corepack with lockfile-compatible version) ---
-LOCKFILE_VERSION=$(grep -o "lockfileVersion: '[0-9.]*'" "$SCRIPT_DIR/pnpm-lock.yaml" | cut -d"'" -f2 2>/dev/null || echo "9.0")
-case "${LOCKFILE_VERSION%%.*}" in
-  6) PNPM_VERSION="8" ;;
-  *) PNPM_VERSION="9" ;;
-esac
-PM="corepack pnpm@${PNPM_VERSION}"
-echo "Lockfile v${LOCKFILE_VERSION} → pnpm@${PNPM_VERSION}"
-
 # --- Verify root build ---
 if [ ! -d "$ROOT_DIR/dist" ]; then
   echo "ERROR: Root package not built. Run 'pnpm build' in the repo root first."
@@ -55,10 +46,6 @@ PKG_BAK="$SCRIPT_DIR/package.json.bak"
 cp "$SCRIPT_DIR/pnpm-lock.yaml" "$LOCK_BAK"
 cp "$SCRIPT_DIR/package.json" "$PKG_BAK"
 trap 'rm -f "$LOCK_BAK" "$PKG_BAK"' EXIT
-
-# --- pnpm global bin onto PATH for cds CLI ---
-PNPM_GLOBAL_BIN="$($PM bin -g)"
-export PATH="$PNPM_GLOBAL_BIN:$PATH"
 
 PASSED=()
 FAILED=()
@@ -80,24 +67,24 @@ for combo in "${VERSIONS[@]}"; do
 
   echo ""
   echo "→ Installing dependencies..."
-  $PM install --frozen-lockfile
+  pnpm install --frozen-lockfile
   echo ""
   echo "→ Adding @sap/cds@${CDS_VER}..."
-  $PM add @sap/cds@"$CDS_VER"
+  pnpm add @sap/cds@"$CDS_VER"
   echo ""
   echo "→ Adding @cap-js/sqlite@${SQLITE_VER} @cap-js/cds-test@${CDS_TEST_VER}..."
-  $PM add -D @cap-js/sqlite@"$SQLITE_VER" @cap-js/cds-test@"$CDS_TEST_VER"
+  pnpm add -D @cap-js/sqlite@"$SQLITE_VER" @cap-js/cds-test@"$CDS_TEST_VER"
   echo ""
   echo "→ Adding @sap/cds-dk@${CDS_VER} (global)..."
-  $PM add -g @sap/cds-dk@"$CDS_VER"
+  pnpm add -D @sap/cds-dk@"$CDS_VER"
 
   echo ""
   echo "→ CDS info..."
-  cds version --info
+  pnpm exec cds version --info
 
   echo ""
   echo "→ Running tests..."
-  if $PM test; then
+  if pnpm test; then
     echo "✓ PASSED: $LABEL"
     PASSED+=("$LABEL")
   else
@@ -109,7 +96,7 @@ for combo in "${VERSIONS[@]}"; do
   echo ""
   echo "→ Cleaning up..."
   rm -rf node_modules pnpm-lock.yaml
-  $PM remove -g @sap/cds-dk 2>/dev/null || true
+  pnpm remove -g @sap/cds-dk 2>/dev/null || true
 
   popd > /dev/null
 done

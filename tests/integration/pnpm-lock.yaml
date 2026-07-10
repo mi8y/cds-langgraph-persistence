@@ -39,7 +39,7 @@ packages:
   '@mi8y/cds-langgraph-persistence@file:../..':
     resolution: {directory: ../.., type: directory}
     peerDependencies:
-      '@sap/cds': '>=8'
+      '@sap/cds': '>=9'
 
   '@sap/cds-compiler@7.0.1':
     resolution: {integrity: sha512-Qwk9jitwSSwPB9FTB/Q6gYPxFsJxswhfsO9Ux77HTxjIhse8O/Hlq2XzkpVSTyaAVr8Lo7wLfpytHwKQScZTwQ==}
