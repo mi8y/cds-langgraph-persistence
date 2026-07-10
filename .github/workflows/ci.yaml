@@ -206,7 +206,7 @@ jobs:
 
       - name: CDS Info
         shell: bash
-        run: cds version --info
+        run: pnpm exec cds version --info
 
       - name: Run integration tests
         shell: bash
