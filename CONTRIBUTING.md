@@ -22,7 +22,8 @@ pnpm install
 - While raising a pull-request, ensure that
   - PR title follows the [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) format.
   - Build is passing - `pnpm build` before committing.
-  - All tests are passing - `pnpm test` before committing.
+  - All unit tests are passing - `pnpm test` before committing.
+  - All integration tests are passing - `cd tests/integration && sh run.sh` before committing.
   - Code is formatted - `pnpm format` and linted - `pnpm lint` before committing.
   - Ensure the code is well documented
   - Ensure the code is well tested and test coverage is not reduced.

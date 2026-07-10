@@ -1,0 +1,14 @@
+{
+  "name": "cds-langgraph-persistence-integration-tests",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@11.11.0",
+  "dependencies": {
+    "@mi8y/cds-langgraph-persistence": "file:../../"
+  },
+  "scripts": {
+    "test": "cds test",
+    "test:debug": "DEBUG=plugins cds test --unmute"
+  }
+}

@@ -39,7 +39,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["tests/**/*.ts"],
+    include: ["tests/**/*.test.ts"],
     coverage: {
       provider: "v8",
       exclude: ["@cds-models/"],
