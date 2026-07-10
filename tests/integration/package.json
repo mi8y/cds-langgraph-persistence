@@ -4,12 +4,7 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "@mi8y/cds-langgraph-persistence": "file:../../",
-    "@sap/cds": "10.0.3"
-  },
-  "devDependencies": {
-    "@cap-js/sqlite": "^3",
-    "@cap-js/cds-test": "^1.0.1"
+    "@mi8y/cds-langgraph-persistence": "file:../../"
   },
   "scripts": {
     "test": "cds test",
