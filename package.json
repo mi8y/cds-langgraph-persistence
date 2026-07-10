@@ -20,7 +20,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
-    }
+    },
+    "./cds-plugin": "./cds-plugin.js"
   },
   "files": [
     "dist/**/*",
