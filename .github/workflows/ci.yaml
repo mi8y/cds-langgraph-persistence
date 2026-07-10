@@ -170,7 +170,6 @@ jobs:
         node-version: [24]
         cap-version: [
             # [ @sap/cds, @cap-js/sqlite, @cap-js/cds-test ]
-            [8, 1, 0.4],
             [9, 2, 1],
             [10, 3, 1],
           ]

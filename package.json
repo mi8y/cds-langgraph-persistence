@@ -68,7 +68,7 @@
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@sap/cds": ">=8"
+    "@sap/cds": ">=9"
   },
   "peerDependenciesMeta": {
     "@sap/cds": {

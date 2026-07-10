@@ -27,7 +27,8 @@ This project builds a CDS Plugin for SAP CAP applications to build LangGraph/Lan
 ## Testing
 
 - Uses Vitest framework and follows `*.test.ts` naming convention.
-- `pnpm test` to run tests
+- `pnpm test` to run unit tests
+- `cd tests/integration && sh run.sh` to run integration tests
 
 ## Contributing
 
