@@ -1,0 +1,59 @@
+
+@server=http://localhost:4004
+@username=alice
+@password=
+
+### 1. First check the checkpoints table is empty
+# @name data-checkpoints
+GET {{server}}/odata/v4/info/Checkpoints
+Authorization: Basic {{username}}:{{password}}
+
+
+### 2. Ask the agent to give you all the books in the catalog
+# @name agent-all-books
+POST {{server}}/rest/agent/invoke
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "threadId": "test-thread-1",
+  "content": "Give me the list of all the books in the catalog."
+}
+
+### 3. Ask the agent to give you all the books by a specific author
+# @name agent-books-by-author
+POST {{server}}/rest/agent/invoke
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "threadId": "test-thread-1",
+  "content": "Provide me with a list of books written by Edgar Allen Poe."
+}
+
+### 4. Ask the agent about the chat history so far
+# @name agent-chat-history
+POST {{server}}/rest/agent/invoke
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "threadId": "test-thread-1",
+  "content": "What are the questions have I asked you so far?"
+}
+
+### 5. Now check the checkpoints table again to see if it has been updated with the new checkpoints
+# @name data-checkpoints
+GET {{server}}/odata/v4/info/Checkpoints
+Authorization: Basic {{username}}:{{password}}
+
+### 6. Now change the threadId and ask the agent about the chat history so far
+# @name agent-chat-history
+POST {{server}}/rest/agent/invoke
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "threadId": "test-thread-2",
+  "content": "What are the questions have I asked you so far?"
+}

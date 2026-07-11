@@ -1,3 +1,7 @@
 allowBuilds:
   tree-sitter: true
   tree-sitter-java: false
+
+packages:
+  - "examples/*"
+  - "tests/integration"
