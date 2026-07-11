@@ -1,6 +1,6 @@
 {
   "name": "@mi8y/cds-langgraph-persistence",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "CDS Plugin for enabling persistence in LangGraph/LangChain/DeepAgents - Checkpoint & Memory",
   "author": "Merbin J Anselm <merbin.j.anselm@mi8y.com>",
   "repository": {
