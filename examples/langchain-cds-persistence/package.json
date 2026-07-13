@@ -1,5 +1,5 @@
 {
-  "name": "langchain-cds-persistence",
+  "name": "@examples/langchain-cds-persistence",
   "version": "1.0.0",
   "type": "module",
   "private": true,

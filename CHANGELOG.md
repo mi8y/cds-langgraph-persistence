@@ -1,5 +1,11 @@
 # @mi8y/cds-langgraph-persistence
 
+## 0.2.0
+
+### Minor Changes
+
+- 50b1fb5: Add empty config options for checkpoint saver for non-breaking future support
+
 ## 0.1.0
 
 ### Minor Changes

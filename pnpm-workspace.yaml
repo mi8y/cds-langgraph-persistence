@@ -3,4 +3,5 @@ allowBuilds:
   tree-sitter-java: false
 
 packages:
+  - "."
   - "examples/*"
