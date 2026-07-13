@@ -1,5 +1,11 @@
 # @mi8y/cds-langgraph-persistence
 
+## 0.3.0
+
+### Minor Changes
+
+- 917885b: - Add `name` as mandatory config to run multiple agents/graphs within a single CDS app
+
 ## 0.2.0
 
 ### Minor Changes
