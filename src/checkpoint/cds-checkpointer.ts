@@ -19,9 +19,17 @@ import {
   WRITES_IDX_MAP,
 } from "@langchain/langgraph-checkpoint";
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type CdsCheckpointSaverConfig = {
+  // future configuration options can be added here if needed
+};
+
 export class CdsCheckpointSaver extends BaseCheckpointSaver {
-  constructor(serde?: SerializerProtocol) {
+  protected config: CdsCheckpointSaverConfig;
+
+  constructor(config?: CdsCheckpointSaverConfig, serde?: SerializerProtocol) {
     super(serde);
+    this.config = config ?? {};
   }
 
   async getTuple(config: RunnableConfig): Promise<CheckpointTuple | undefined> {
