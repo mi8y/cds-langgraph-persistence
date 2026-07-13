@@ -181,17 +181,13 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
     );
     const hasFilter = Object.keys(sanitizedFilter).length > 0;
 
+    // apply filter if no limit is specified, otherwise we will filter in memory after fetching the results
     if (limit !== undefined && !hasFilter) {
       query = query.limit(limit);
     }
 
-    const resCheckpoints = await query;
-    if (!resCheckpoints) {
-      return;
-    }
-
     let yielded = 0;
-    for (const checkpointState of resCheckpoints) {
+    for await (const checkpointState of query) {
       if (limit !== undefined && yielded >= limit) {
         break;
       }
