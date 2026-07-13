@@ -19,20 +19,52 @@ import {
   WRITES_IDX_MAP,
 } from "@langchain/langgraph-checkpoint";
 
+/**
+ * Configuration for {@link CdsCheckpointSaver}.
+ *
+ * Every instance must be scoped to a unique `name` so that checkpoints and
+ * pending writes belonging to different graphs/agents never collide when they
+ * are stored in the same database.
+ */
 export type CdsCheckpointSaverConfig = {
-  id: string;
+  /**
+   * A **required** identifier matching the graph/agent this saver belongs to.
+   *
+   * It is persisted as the `graphName` column and used as a composite key in
+   * the `Checkpoints` and `CheckpointWrites` entities, isolating state per
+   * graph. Use a stable, human-readable value such as `"my-agent"`.
+   */
+  name: string;
 };
 
+/**
+ * A LangGraph {@link BaseCheckpointSaver} backed by the SAP CAP data layer.
+ *
+ * Instances persist graph state (checkpoints and pending writes) through CAP
+ * CDS queries (`SELECT`, `UPSERT`, `DELETE`), which CDS routes to the correct
+ * database and tenant based on the active request context. This gives agents
+ * durable, multi-tenant checkpointing on any database CAP supports (SQLite,
+ * SAP HANA, PostgreSQL, …) without additional infrastructure.
+ *
+ * A saver is scoped to a single graph via the mandatory {@link CdsCheckpointSaverConfig.name},
+ * preventing collisions when multiple graphs share the same database.
+ *
+ * @example
+ * ```ts
+ * const saver = new CdsCheckpointSaver({ name: "my-agent" });
+ * const graph = new StateGraph(State).compile({ checkpointer: saver });
+ * ```
+ */
 export class CdsCheckpointSaver extends BaseCheckpointSaver {
   protected config: CdsCheckpointSaverConfig;
 
-  // The graph ID is used to scope the checkpoints and writes to a specific graph instance.
-  protected graphId: string;
+  // The graph name is used to scope the checkpoints and writes to a specific graph instance.
+  protected graphName: string;
 
   constructor(config: CdsCheckpointSaverConfig, serde?: SerializerProtocol) {
     super(serde);
     this.config = config;
-    this.graphId = config.id;
+    this.graphName = config.name;
   }
 
   async getTuple(config: RunnableConfig): Promise<CheckpointTuple | undefined> {
@@ -62,7 +94,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
           }));
       })
       .where({
-        graphId: this.graphId,
+        graphName: this.graphName,
         threadId: threadId,
         namespace: checkpointNamespace,
         ...(checkpointId ? { id: checkpointId } : {}),
@@ -152,7 +184,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
           }));
       })
       .orderBy("id desc")
-      .where({ graphId: this.graphId });
+      .where({ graphName: this.graphName });
 
     if (threadId !== undefined) {
       query = query.where({
@@ -316,7 +348,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
 
     const valueDecoder = new TextDecoder("utf-8");
     await UPSERT.into(Checkpoints).entries({
-      graphId: this.graphId,
+      graphName: this.graphName,
       id: checkpoint.id,
       namespace: checkpointNamespace,
       threadId: threadId,
@@ -364,7 +396,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
         const valueDecoder = new TextDecoder("utf-8");
         return {
           threadId: threadId,
-          checkpoint_graphId: this.graphId,
+          checkpoint_graphName: this.graphName,
           checkpoint_id: checkpointId,
           checkpoint_namespace: checkpointNamespace,
           checkpoint_threadId: threadId,
@@ -385,11 +417,11 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
 
   async deleteThread(threadId: string): Promise<void> {
     await DELETE.from(CheckpointWrites).where({
-      checkpoint_graphId: this.graphId,
+      checkpoint_graphName: this.graphName,
       checkpoint_threadId: threadId,
     });
     await DELETE.from(Checkpoints).where({
-      graphId: this.graphId,
+      graphName: this.graphName,
       threadId: threadId,
     });
   }
@@ -401,7 +433,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
   ) {
     const parentWrites = await SELECT.from(CheckpointWrites)
       .where({
-        checkpoint_graphId: this.graphId,
+        checkpoint_graphName: this.graphName,
         checkpoint_threadId: threadId,
         checkpoint_id: parentId,
         channel: TASKS,
