@@ -78,7 +78,7 @@ describe("CDS Plugin Integration", () => {
 
     it("put() should create a row in the Checkpoints table", async () => {
       const { Checkpoints } = cds.entities(NS);
-      const saver = new CdsCheckpointSaver({ id: "test" });
+      const saver = new CdsCheckpointSaver({ name: "test" });
       const cpId = "cp-cql-1";
       const threadId = "thread-1";
 
@@ -100,7 +100,7 @@ describe("CDS Plugin Integration", () => {
 
     it("putWrites() should create rows in the CheckpointWrites table", async () => {
       const { CheckpointWrites } = cds.entities(NS);
-      const saver = new CdsCheckpointSaver({ id: "test" });
+      const saver = new CdsCheckpointSaver({ name: "test" });
       const cpId = "cp-cql-2";
       const threadId = "thread-2";
       const config = makeConfig(threadId, "", cpId);
@@ -124,7 +124,7 @@ describe("CDS Plugin Integration", () => {
 
     it("writes should reference their parent checkpoint via composition", async () => {
       const { Checkpoints } = cds.entities(NS);
-      const saver = new CdsCheckpointSaver({ id: "test" });
+      const saver = new CdsCheckpointSaver({ name: "test" });
       const cpId = "cp-comp-1";
       const threadId = "thread-comp";
       const config = makeConfig(threadId, "", cpId);
@@ -149,7 +149,7 @@ describe("CDS Plugin Integration", () => {
             w.idx;
           });
         })
-        .where({ graphId: "test", id: cpId });
+        .where({ graphName: "test", id: cpId });
 
       expect(result.writes).to.have.lengthOf(2);
       expect(result.writes.map((w) => w.channel)).to.have.members([
@@ -174,7 +174,7 @@ describe("CDS Plugin Integration", () => {
       const metadata = makeMetadata("loop", 0, { custom: "raw-test" });
 
       await INSERT.into(Checkpoints).entries({
-        graphId: "test",
+        graphName: "test",
         id: cpId,
         namespace: "",
         threadId,
@@ -183,7 +183,7 @@ describe("CDS Plugin Integration", () => {
         metadata: JSON.stringify(metadata),
       });
 
-      const saver = new CdsCheckpointSaver({ id: "test" });
+      const saver = new CdsCheckpointSaver({ name: "test" });
       const result = await saver.getTuple(makeConfig(threadId));
 
       expect(result).to.exist;
@@ -201,7 +201,7 @@ describe("CDS Plugin Integration", () => {
       for (let i = 1; i <= 3; i++) {
         const cpId = `cp-list-${i}`;
         await INSERT.into(Checkpoints).entries({
-          graphId: "test",
+          graphName: "test",
           id: cpId,
           namespace: "",
           threadId,
@@ -211,7 +211,7 @@ describe("CDS Plugin Integration", () => {
         });
       }
 
-      const saver = new CdsCheckpointSaver({ id: "test" });
+      const saver = new CdsCheckpointSaver({ name: "test" });
       const results = [];
       for await (const tuple of saver.list(makeConfig(threadId))) {
         results.push(tuple);
@@ -233,7 +233,7 @@ describe("CDS Plugin Integration", () => {
 
     it("should remove all Checkpoints and CheckpointWrites for a thread", async () => {
       const { Checkpoints, CheckpointWrites } = cds.entities(NS);
-      const saver = new CdsCheckpointSaver({ id: "test" });
+      const saver = new CdsCheckpointSaver({ name: "test" });
       const threadId = "thread-del-target";
       const otherThread = "thread-del-other";
 
@@ -285,12 +285,12 @@ describe("CDS Plugin Integration", () => {
       const metadata = makeMetadata("loop", 0, { custom: "persistence" });
 
       // Instance A: write data
-      let saver = new CdsCheckpointSaver({ id: "test" });
+      let saver = new CdsCheckpointSaver({ name: "test" });
       await saver.put(config, checkpoint, metadata, {});
       await saver.putWrites(config, [["ch-p", { persisted: true }]], "task-p");
 
       // Release reference — new instance should read from same DB
-      saver = new CdsCheckpointSaver({ id: "test" });
+      saver = new CdsCheckpointSaver({ name: "test" });
 
       const result = await saver.getTuple(config);
       expect(result).to.exist;
@@ -303,14 +303,14 @@ describe("CDS Plugin Integration", () => {
       // Cross-verify via raw CQL from the fresh instance's era
       const { Checkpoints } = cds.entities(NS);
       const dbRows = await SELECT.from(Checkpoints).where({
-        graphId: "test",
+        graphName: "test",
         id: cpId,
       });
       expect(dbRows).to.have.lengthOf(1);
     });
 
     it("should isolate data between different threads", async () => {
-      const saver = new CdsCheckpointSaver({ id: "test" });
+      const saver = new CdsCheckpointSaver({ name: "test" });
       const threadA = "thread-iso-a";
       const threadB = "thread-iso-b";
       const cpA = "cp-iso-a";
@@ -330,7 +330,7 @@ describe("CDS Plugin Integration", () => {
       );
 
       // Now create fresh instance and verify isolation
-      const saverB = new CdsCheckpointSaver({ id: "test" });
+      const saverB = new CdsCheckpointSaver({ name: "test" });
 
       const resultA = await saverB.getTuple(makeConfig(threadA));
       expect(resultA.checkpoint.id).to.equal(cpA);
@@ -348,7 +348,7 @@ describe("CDS Plugin Integration", () => {
     beforeEach(cleanup);
 
     it("should isolate checkpoints by checkpoint_ns", async () => {
-      const saver = new CdsCheckpointSaver({ id: "test" });
+      const saver = new CdsCheckpointSaver({ name: "test" });
       const threadId = "thread-ns";
       const nsA = "ns-alpha";
       const nsB = "ns-beta";
