@@ -1,6 +1,7 @@
 namespace plugin.langgraph.persistence;
 
 entity Checkpoints {
+    key graphId    : String(256) not null;
     key id         : String(256) not null;
     key namespace  : String(256) not null default '';
     key threadId   : String(256) not null;

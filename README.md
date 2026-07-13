@@ -37,10 +37,10 @@ Requires `@sap/cds >=8` as a peer dependency.
 
 The package is a CDS plugin — `cds-plugin.js` auto-registers on startup and tells CDS to load `index.cds`. This adds two entities to your project model under the `plugin.langgraph.persistence` namespace:
 
-| Entity             | Purpose                                                                                                       |
-| ------------------ | ------------------------------------------------------------------------------------------------------------- |
-| `Checkpoints`      | Graph state snapshots — keyed by `(id, namespace, threadId)` with serialized checkpoint and metadata payloads |
-| `CheckpointWrites` | Pending writes linked to each checkpoint — composition child of `Checkpoints`                                 |
+| Entity             | Purpose                                                                                                                |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `Checkpoints`      | Graph state snapshots — keyed by `(graphId, id, namespace, threadId)` with serialized checkpoint and metadata payloads |
+| `CheckpointWrites` | Pending writes linked to each checkpoint — composition child of `Checkpoints`                                          |
 
 CDS handles DDL generation for each target database, and in multi-tenant setups the tables are deployed per tenant automatically.
 
@@ -83,7 +83,7 @@ const graph = new StateGraph(State)
   .addEdge("__start__", "agent")
   .addEdge("agent", "__end__")
   .compile({
-    checkpointer: new CdsCheckpointSaver(),
+    checkpointer: new CdsCheckpointSaver({ id: "my-agent" }),
   });
 
 export default class AgentService extends cds.ApplicationService {
@@ -121,7 +121,7 @@ const agent = createAgent({
   model: "openai:gpt-4o",
   tools: [searchTool, calculatorTool],
   systemPrompt: "You are a helpful assistant.",
-  checkpointer: new CdsCheckpointSaver(),
+  checkpointer: new CdsCheckpointSaver({ id: "my-agent" }),
 });
 
 export default class AgentService extends cds.ApplicationService {
@@ -154,7 +154,7 @@ import { CdsCheckpointSaver } from "@mi8y/cds-langgraph-persistence";
 
 const agent = createDeepAgent({
   model: "claude-sonnet-4-20250514",
-  checkpointer: new CdsCheckpointSaver(),
+  checkpointer: new CdsCheckpointSaver({ id: "my-agent" }),
 });
 
 export default class AgentService extends cds.ApplicationService {
@@ -206,9 +206,9 @@ Pick the strategy that fits your use case. For a typical chatbot, scoping by `re
 
 ## API
 
-### `new CdsCheckpointSaver(serde?)`
+### `new CdsCheckpointSaver(config, serde?)`
 
-Creates a checkpoint saver instance. Accepts an optional `SerializerProtocol` for custom serialization (defaults to `JsonPlusSerializer`).
+Creates a checkpoint saver instance. `config.id` is a **required** identifier that scopes all checkpoints to a specific graph/agent, preventing collisions when multiple graphs share the same database. Optionally accepts a `SerializerProtocol` for custom serialization (defaults to `JsonPlusSerializer`).
 
 The saver implements the full `BaseCheckpointSaver` from `@langchain/langgraph-checkpoint` interface:
 

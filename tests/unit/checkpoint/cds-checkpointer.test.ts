@@ -35,7 +35,7 @@ export const cdsCheckpointSaverTestInitializer: CheckpointSaverTestInitializer<C
     },
 
     async createCheckpointer() {
-      return new CdsCheckpointSaver();
+      return new CdsCheckpointSaver({ id: "test" });
     },
 
     async destroyCheckpointer() {
