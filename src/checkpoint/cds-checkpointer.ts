@@ -186,8 +186,15 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
       query = query.limit(limit);
     }
 
+    const resCheckpoints = await query;
+    if (!resCheckpoints) {
+      return;
+    }
+
     let yielded = 0;
-    for await (const checkpointState of query) {
+    // TODO: from minimum CDS 10 SQLite onwards, use `streaming` option
+    // with CDS 9, the cursor is not released leading to errors
+    for (const checkpointState of resCheckpoints) {
       if (limit !== undefined && yielded >= limit) {
         break;
       }
