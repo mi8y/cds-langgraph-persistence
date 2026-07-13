@@ -48,7 +48,7 @@ export class AgentService extends cds.ApplicationService {
     });
 
     // agent 'checkpointer' configuration
-    const checkpointSaver = new CdsCheckpointSaver();
+    const checkpointSaver = new CdsCheckpointSaver({ id: "agent" });
 
     // 'agent' configuration
     const agent = createAgent({

@@ -19,17 +19,20 @@ import {
   WRITES_IDX_MAP,
 } from "@langchain/langgraph-checkpoint";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type CdsCheckpointSaverConfig = {
-  // future configuration options can be added here if needed
+  id: string;
 };
 
 export class CdsCheckpointSaver extends BaseCheckpointSaver {
   protected config: CdsCheckpointSaverConfig;
 
-  constructor(config?: CdsCheckpointSaverConfig, serde?: SerializerProtocol) {
+  // The graph ID is used to scope the checkpoints and writes to a specific graph instance.
+  protected graphId: string;
+
+  constructor(config: CdsCheckpointSaverConfig, serde?: SerializerProtocol) {
     super(serde);
-    this.config = config ?? {};
+    this.config = config;
+    this.graphId = config.id;
   }
 
   async getTuple(config: RunnableConfig): Promise<CheckpointTuple | undefined> {
@@ -59,6 +62,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
           }));
       })
       .where({
+        graphId: this.graphId,
         threadId: threadId,
         namespace: checkpointNamespace,
         ...(checkpointId ? { id: checkpointId } : {}),
@@ -147,18 +151,28 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
             (w.taskId, w.channel, w.type, w.value);
           }));
       })
-      .orderBy("id desc");
+      .orderBy("id desc")
+      .where({ graphId: this.graphId });
 
     if (threadId !== undefined) {
-      query = query.where({ threadId: threadId });
+      query = query.where({
+        ...query.where,
+        threadId: threadId,
+      });
     }
 
     if (checkpointNamespace !== undefined && checkpointNamespace !== null) {
-      query = query.where({ namespace: checkpointNamespace });
+      query = query.where({
+        ...query.where,
+        namespace: checkpointNamespace,
+      });
     }
 
     if (before?.configurable?.checkpoint_id !== undefined) {
-      query = query.where({ id: { "<": before.configurable.checkpoint_id } });
+      query = query.where({
+        ...query.where,
+        id: { "<": before.configurable.checkpoint_id },
+      });
     }
 
     // CAP CDS does not support native JSON operations - so we filter them in memory after fetching the results
@@ -167,6 +181,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
     );
     const hasFilter = Object.keys(sanitizedFilter).length > 0;
 
+    // apply filter if no limit is specified, otherwise we will filter in memory after fetching the results
     if (limit !== undefined && !hasFilter) {
       query = query.limit(limit);
     }
@@ -177,6 +192,8 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
     }
 
     let yielded = 0;
+    // TODO: from minimum CDS 10 SQLite onwards, use `streaming` option
+    // with CDS 9, the cursor is not released leading to errors
     for (const checkpointState of resCheckpoints) {
       if (limit !== undefined && yielded >= limit) {
         break;
@@ -299,6 +316,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
 
     const valueDecoder = new TextDecoder("utf-8");
     await UPSERT.into(Checkpoints).entries({
+      graphId: this.graphId,
       id: checkpoint.id,
       namespace: checkpointNamespace,
       threadId: threadId,
@@ -346,6 +364,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
         const valueDecoder = new TextDecoder("utf-8");
         return {
           threadId: threadId,
+          checkpoint_graphId: this.graphId,
           checkpoint_id: checkpointId,
           checkpoint_namespace: checkpointNamespace,
           checkpoint_threadId: threadId,
@@ -366,9 +385,13 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
 
   async deleteThread(threadId: string): Promise<void> {
     await DELETE.from(CheckpointWrites).where({
+      checkpoint_graphId: this.graphId,
       checkpoint_threadId: threadId,
     });
-    await DELETE.from(Checkpoints).where({ threadId: threadId });
+    await DELETE.from(Checkpoints).where({
+      graphId: this.graphId,
+      threadId: threadId,
+    });
   }
 
   protected async migratePendingSends(
@@ -378,6 +401,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
   ) {
     const parentWrites = await SELECT.from(CheckpointWrites)
       .where({
+        checkpoint_graphId: this.graphId,
         checkpoint_threadId: threadId,
         checkpoint_id: parentId,
         channel: TASKS,
