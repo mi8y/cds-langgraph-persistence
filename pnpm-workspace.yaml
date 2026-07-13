@@ -4,4 +4,3 @@ allowBuilds:
 
 packages:
   - "examples/*"
-  - "tests/integration"
