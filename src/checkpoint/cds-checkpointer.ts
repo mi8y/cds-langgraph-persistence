@@ -85,7 +85,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
         (c.threadId,
           c.namespace,
           c.id,
-          c.parentId,
+          c.parent_id,
           c.type,
           c.checkpoint,
           c.metadata,
@@ -129,11 +129,11 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
       }),
     );
 
-    if (checkpoint.v < 4 && resCheckpoint.parentId) {
+    if (checkpoint.v < 4 && resCheckpoint.parent_id) {
       await this.migratePendingSends(
         checkpoint,
         resCheckpoint.threadId!,
-        resCheckpoint.parentId,
+        resCheckpoint.parent_id,
       );
     }
 
@@ -146,12 +146,12 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
           checkpoint_id: resCheckpoint.id,
         },
       },
-      parentConfig: resCheckpoint.parentId
+      parentConfig: resCheckpoint.parent_id
         ? {
             configurable: {
               thread_id: resCheckpoint.threadId,
               checkpoint_ns: resCheckpoint.namespace,
-              checkpoint_id: resCheckpoint.parentId,
+              checkpoint_id: resCheckpoint.parent_id,
             },
           }
         : undefined,
@@ -175,7 +175,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
         (c.threadId,
           c.namespace,
           c.id,
-          c.parentId,
+          c.parent_id,
           c.type,
           c.checkpoint,
           c.metadata,
@@ -261,11 +261,11 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
         }),
       );
 
-      if (checkpoint.v < 4 && checkpointState.parentId) {
+      if (checkpoint.v < 4 && checkpointState.parent_id) {
         await this.migratePendingSends(
           checkpoint,
           checkpointState.threadId!,
-          checkpointState.parentId,
+          checkpointState.parent_id,
         );
       }
 
@@ -278,12 +278,12 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
           },
         },
         checkpoint: checkpoint,
-        parentConfig: checkpointState.parentId
+        parentConfig: checkpointState.parent_id
           ? {
               configurable: {
                 thread_id: checkpointState.threadId,
                 checkpoint_ns: checkpointState.namespace,
-                checkpoint_id: checkpointState.parentId,
+                checkpoint_id: checkpointState.parent_id,
               },
             }
           : undefined,
@@ -352,7 +352,14 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
       id: checkpoint.id,
       namespace: checkpointNamespace,
       threadId: threadId,
-      parentId: parentCheckpointId,
+      parent: parentCheckpointId
+        ? {
+            graphName: this.graphName,
+            id: parentCheckpointId,
+            namespace: checkpointNamespace,
+            threadId: threadId,
+          }
+        : null,
       type: type1,
       checkpoint: valueDecoder.decode(serializedCheckpoint),
       metadata: valueDecoder.decode(serializedMetadata),

@@ -1,18 +1,20 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
-import tsconfigPaths from "vite-tsconfig-paths";
 import { builtinModules } from "module";
 import pkg from "./package.json";
 
 export default defineConfig({
   plugins: [
-    tsconfigPaths(),
     dts({
       insertTypesEntry: true, // Automatically links types in package.json
       include: ["src"],
     }),
   ],
+
+  resolve: {
+    tsconfigPaths: true,
+  },
 
   // Build Configuration
   build: {
