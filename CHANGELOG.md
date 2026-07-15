@@ -1,5 +1,11 @@
 # @mi8y/cds-langgraph-persistence
 
+## 0.4.0
+
+### Minor Changes
+
+- 0b70f73: Made checkpoint parent as a CAP managed association
+
 ## 0.3.0
 
 ### Minor Changes
