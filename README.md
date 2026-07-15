@@ -31,7 +31,7 @@ Because CDS handles database mapping, connection pooling, and multi-tenancy nati
 npm install @mi8y/cds-langgraph-persistence
 ```
 
-Requires `@sap/cds >=8` as a peer dependency.
+Requires `@sap/cds >=9` as a peer dependency.
 
 ## How does this work
 
@@ -63,7 +63,7 @@ service AgentService {
 
 ### LangGraph
 
-Build and compile a LangGraph workflow, then invoke it inside a CAP handler with a tenant-aware `thread_id`:
+Build and compile a LangGraph workflow, then invoke it inside a CAP handler with a `thread_id`:
 
 ```ts
 // srv/agent-service.ts
@@ -91,8 +91,7 @@ export default class AgentService extends cds.ApplicationService {
     this.on("invoke", async (req) => {
       const { message } = req.data;
 
-      // thread_id scoped to user + tenant for multi-tenant isolation
-      const threadId = `${req.tenant}/${req.user.id}`;
+      const threadId = `${req.user.id}`;
 
       const result = await graph.invoke(
         { messages: [message] },
@@ -121,7 +120,7 @@ const agent = createAgent({
   model: "openai:gpt-4o",
   tools: [searchTool, calculatorTool],
   systemPrompt: "You are a helpful assistant.",
-  checkpointer: new CdsCheckpointSaver({ id: "my-agent" }),
+  checkpointer: new CdsCheckpointSaver({ name: "my-agent" }),
 });
 
 export default class AgentService extends cds.ApplicationService {
@@ -154,7 +153,7 @@ import { CdsCheckpointSaver } from "@mi8y/cds-langgraph-persistence";
 
 const agent = createDeepAgent({
   model: "claude-sonnet-4-20250514",
-  checkpointer: new CdsCheckpointSaver({ id: "my-agent" }),
+  checkpointer: new CdsCheckpointSaver({ name: "my-agent" }),
 });
 
 export default class AgentService extends cds.ApplicationService {
@@ -180,21 +179,14 @@ export default class AgentService extends cds.ApplicationService {
 The `thread_id` in `configurable` is how LangGraph separates conversations. In a CAP handler:
 
 ```ts
-// Per-user conversation — one thread per user
+// Per-user conversation — one thread per user (automatically multi-tenant safe)
 {
   configurable: {
     thread_id: req.user.id;
   }
 }
 
-// Per-user + tenant (multi-tenant safe)
-{
-  configurable: {
-    thread_id: `${req.tenant}/${req.user.id}`;
-  }
-}
-
-// Per-session — generate a new thread per request
+// Per-session — generate a new thread per request/task
 {
   configurable: {
     thread_id: crypto.randomUUID();
