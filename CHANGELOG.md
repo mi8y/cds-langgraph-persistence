@@ -1,5 +1,11 @@
 # @mi8y/cds-langgraph-persistence
 
+## 0.5.0
+
+### Minor Changes
+
+- 1fe9401: Add `cds add langgraph-persistence` command. This is a mandatory step after install, since the previous approach does not add the entities during build time
+
 ## 0.4.0
 
 ### Minor Changes
