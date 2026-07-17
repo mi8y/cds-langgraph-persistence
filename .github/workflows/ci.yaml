@@ -210,6 +210,12 @@ jobs:
           cd tests/integration
           pnpm exec cds version --info
 
+      - name: Run 'cds add langgraph-persistence' command
+        shell: bash
+        run: |
+          cd tests/integration
+          pnpm exec cds add langgraph-persistence
+
       - name: Run integration tests
         shell: bash
         run: |

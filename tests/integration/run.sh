@@ -75,12 +75,16 @@ for combo in "${VERSIONS[@]}"; do
   echo "→ Adding @cap-js/sqlite@${SQLITE_VER} @cap-js/cds-test@${CDS_TEST_VER}..."
   pnpm add -D @cap-js/sqlite@"$SQLITE_VER" @cap-js/cds-test@"$CDS_TEST_VER"
   echo ""
-  echo "→ Adding @sap/cds-dk@${CDS_VER} (global)..."
+  echo "→ Adding @sap/cds-dk@${CDS_VER}..."
   pnpm add -D @sap/cds-dk@"$CDS_VER"
 
   echo ""
   echo "→ CDS info..."
   pnpm exec cds version --info
+
+  echo ""
+  echo "→ Running 'add' command..."
+  pnpm exec cds add langgraph-persistence
 
   echo ""
   echo "→ Running tests..."
@@ -96,7 +100,7 @@ for combo in "${VERSIONS[@]}"; do
   echo ""
   echo "→ Cleaning up..."
   rm -rf node_modules pnpm-lock.yaml
-  pnpm remove -g @sap/cds-dk 2>/dev/null || true
+  rm srv/langgraph-persistence.cds 2>/dev/null || true
 
   popd > /dev/null
 done
