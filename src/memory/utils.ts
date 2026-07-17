@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { StoreItem } from "#cds-models/plugin/langgraph/persistence";
+import {
+  StoreItem,
+  StoreItemField,
+} from "#cds-models/plugin/langgraph/persistence";
 import { Item } from "@langchain/langgraph-checkpoint";
 
 export function mapNamespaceToCds(namespace: string[]): string {
@@ -13,8 +16,8 @@ export function mapNamespaceFromCds(namespace: string): string[] {
 export function mapStoreItemFromCds(storeItem: StoreItem): Item {
   const values: Record<string, any> =
     storeItem.values?.reduce((acc: Record<string, any>, field) => {
-      if (field.name) {
-        acc[field.name] = field.value;
+      if (field.name && field.value !== null && field.value !== undefined) {
+        acc[field.name] = JSON.parse(field.value);
       }
       return acc;
     }, {}) ?? {};
@@ -28,17 +31,28 @@ export function mapStoreItemFromCds(storeItem: StoreItem): Item {
 }
 
 export function mapStoreItemToCds(
-  item: Omit<Item, "createdAt" | "updatedAt">,
+  item: Omit<Item, "createdAt" | "updatedAt" | "value">,
 ): StoreItem {
-  const values = Object.entries(item.value ?? {}).map(([name, value]) => ({
-    name,
-    value,
-  }));
   return {
     id: item.key,
     namespace: mapNamespaceToCds(item.namespace),
-    values,
   } as StoreItem;
+}
+
+export function mapStoreItemFieldsToCds(
+  fields: Record<string, any>,
+  namespaceKey: string,
+  key: string,
+): StoreItemField[] {
+  return Object.entries(fields).map(
+    ([name, value]) =>
+      ({
+        name,
+        value: JSON.stringify(value),
+        item_namespace: namespaceKey,
+        item_id: key,
+      }) as StoreItemField,
+  );
 }
 
 export function mapFilterToCds(

@@ -1,4 +1,9 @@
 import {
+  StoreItemFields,
+  StoreItems,
+} from "#cds-models/plugin/langgraph/persistence";
+import {
+  BaseStore,
   GetOperation,
   IndexConfig,
   Item,
@@ -9,18 +14,16 @@ import {
   SearchItem,
   SearchOperation,
 } from "@langchain/langgraph-checkpoint";
-import { BaseStore } from "@langchain/langgraph-checkpoint";
-import { StoreItems } from "#cds-models/plugin/langgraph/persistence";
 import * as utils from "./utils";
 
-export type CdsMemorySaverConfig = {
+export type CdsMemoryStoreConfig = {
   index?: IndexConfig;
 };
 
 export class CdsMemoryStore extends BaseStore {
-  protected params: CdsMemorySaverConfig;
+  protected params: CdsMemoryStoreConfig;
 
-  constructor(params?: CdsMemorySaverConfig) {
+  constructor(params?: CdsMemoryStoreConfig) {
     super();
     this.params = params ?? {};
   }
@@ -135,13 +138,25 @@ export class CdsMemoryStore extends BaseStore {
     namespace,
     value,
   }: PutOperation): Promise<void> {
+    const namespaceKey = utils.mapNamespaceToCds(namespace);
+
     await UPSERT.into(StoreItems).entries(
-      utils.mapStoreItemToCds({
-        key: key,
-        namespace: namespace,
-        value: value ?? {},
-      }),
+      utils.mapStoreItemToCds({ key, namespace }),
     );
+
+    // for the values, we need to delete existing fields and insert new ones
+    const entries = utils.mapStoreItemFieldsToCds(
+      value ?? {},
+      namespaceKey,
+      key,
+    );
+    await DELETE.from(StoreItemFields).where({
+      item_namespace: namespaceKey,
+      item_id: key,
+    });
+    if (entries.length > 0) {
+      await INSERT.into(StoreItemFields).entries(...entries);
+    }
   }
 
   private async listNamespacesOperation({
@@ -184,13 +199,14 @@ export class CdsMemoryStore extends BaseStore {
       .map((result) =>
         result.namespace ? utils.mapNamespaceFromCds(result.namespace) : null,
       )
-      .filter((ns) => {
-        if (!ns) return false;
-        if (maxDepth) return ns.length <= maxDepth;
-        return true;
-      });
+      .filter((ns) => ns !== null) as string[][];
 
-    return namespaces as string[][];
+    if (maxDepth !== undefined) {
+      return namespaces.filter((ns) => {
+        return ns.length <= maxDepth;
+      });
+    }
+    return namespaces;
   }
 
   private async deleteOperation({
