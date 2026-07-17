@@ -31,6 +31,14 @@ Because CDS handles database mapping, connection pooling, and multi-tenancy nati
 npm install @mi8y/cds-langgraph-persistence
 ```
 
+Then register the persistence entities in your CAP project:
+
+```bash
+cds add langgraph-persistence
+```
+
+This creates `srv/langgraph-persistence.cds` with the import that adds the `Checkpoints` and `CheckpointWrites` entities to your project model. This step is **mandatory** — without it, the entities are not available at build time.
+
 Requires `@sap/cds >=9` as a peer dependency.
 
 ## How does this work
