@@ -373,4 +373,145 @@ describe("CDS Plugin Integration", () => {
       expect(resultB.metadata.ns).to.equal("beta");
     });
   });
+
+  // ── CDS Plugin — Transaction Isolation ───────────────────────────────
+
+  describe("CDS Plugin — Transaction Isolation", () => {
+    beforeEach(cleanup);
+
+    it("put() should persist checkpoint when outer transaction rolls back", async () => {
+      const { Checkpoints } = cds.entities(NS);
+      const saver = new CdsCheckpointSaver({ name: "test" });
+      const cpId = "cp-tx-iso-1";
+      const threadId = "thread-tx-iso";
+
+      try {
+        await cds.tx(async () => {
+          await saver.put(
+            makeConfig(threadId, "", cpId),
+            makeCheckpoint(cpId),
+            makeMetadata(),
+            {},
+          );
+          throw new Error("Simulated outbox rollback");
+        });
+      } catch (e) {
+        expect(e.message).to.equal("Simulated outbox rollback");
+      }
+
+      const rows = await SELECT.from(Checkpoints).where({ id: cpId });
+      expect(rows).to.have.lengthOf(1);
+      expect(rows[0].id).to.equal(cpId);
+      expect(rows[0].threadId).to.equal(threadId);
+      expect(rows[0].graphName).to.equal("test");
+    });
+
+    it("putWrites() should persist writes when outer transaction rolls back", async () => {
+      const { CheckpointWrites } = cds.entities(NS);
+      const saver = new CdsCheckpointSaver({ name: "test" });
+      const cpId = "cp-tx-iso-2";
+      const threadId = "thread-tx-iso-2";
+      const config = makeConfig(threadId, "", cpId);
+
+      await saver.put(config, makeCheckpoint(cpId), makeMetadata(), {});
+
+      const writes = [
+        ["channel-a", { data: "hello-tx" }],
+        ["channel-b", { data: "world-tx" }],
+      ];
+
+      try {
+        await cds.tx(async () => {
+          await saver.putWrites(config, writes, "task-tx-iso");
+          throw new Error("Simulated outbox rollback");
+        });
+      } catch (e) {
+        expect(e.message).to.equal("Simulated outbox rollback");
+      }
+
+      const rows = await SELECT.from(CheckpointWrites).where({
+        checkpoint_id: cpId,
+      });
+      expect(rows).to.have.lengthOf(2);
+      expect(rows.map((r) => r.taskId)).to.eql(["task-tx-iso", "task-tx-iso"]);
+      expect(rows.map((r) => r.channel)).to.have.members([
+        "channel-a",
+        "channel-b",
+      ]);
+    });
+
+    it("deleteThread() should take effect even when outer transaction rolls back", async () => {
+      const { Checkpoints, CheckpointWrites } = cds.entities(NS);
+      const saver = new CdsCheckpointSaver({ name: "test" });
+      const threadA = "thread-tx-del-a";
+      const threadB = "thread-tx-del-b";
+
+      for (const [tid, cpId] of [
+        [threadA, "cp-tx-del-a"],
+        [threadB, "cp-tx-del-b"],
+      ]) {
+        await saver.put(
+          makeConfig(tid, "", cpId),
+          makeCheckpoint(cpId),
+          makeMetadata(),
+          {},
+        );
+        await saver.putWrites(
+          makeConfig(tid, "", cpId),
+          [[`ch-${cpId}`, "val"]],
+          `task-${cpId}`,
+        );
+      }
+
+      try {
+        await cds.tx(async () => {
+          await saver.deleteThread(threadA);
+          throw new Error("Simulated outbox rollback");
+        });
+      } catch (e) {
+        expect(e.message).to.equal("Simulated outbox rollback");
+      }
+
+      const remainingCps = await SELECT.from(Checkpoints);
+      const remainingWrites = await SELECT.from(CheckpointWrites);
+      expect(remainingCps).to.have.lengthOf(1);
+      expect(remainingCps[0].threadId).to.equal(threadB);
+      expect(remainingWrites).to.have.lengthOf(1);
+    });
+
+    it("chained checkpoints should survive outer transaction rollback", async () => {
+      const { Checkpoints } = cds.entities(NS);
+      const saver = new CdsCheckpointSaver({ name: "test" });
+      const threadId = "thread-tx-chain";
+
+      try {
+        await cds.tx(async () => {
+          await saver.put(
+            makeConfig(threadId),
+            makeCheckpoint("cp-chain-1"),
+            makeMetadata("loop", 1),
+            {},
+          );
+          await saver.put(
+            makeConfig(threadId, "", "cp-chain-1"),
+            makeCheckpoint("cp-chain-2"),
+            makeMetadata("loop", 2),
+            {},
+          );
+          throw new Error("Simulated outbox rollback");
+        });
+      } catch (e) {
+        expect(e.message).to.equal("Simulated outbox rollback");
+      }
+
+      const rows = await SELECT.from(Checkpoints)
+        .where({ threadId })
+        .orderBy("id");
+      expect(rows).to.have.lengthOf(2);
+      expect(rows[0].id).to.equal("cp-chain-1");
+      expect(rows[0].parent_id).to.be.null;
+      expect(rows[1].id).to.equal("cp-chain-2");
+      expect(rows[1].parent_id).to.equal("cp-chain-1");
+    });
+  });
 });

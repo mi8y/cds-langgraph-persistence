@@ -233,6 +233,10 @@ Checkpointing enables:
 
 In CAP deployments, CDS manages the database connection pool and MTX handles tenant isolation — no additional infrastructure is needed beyond what your CAP application already provides.
 
+### Transaction Isolation
+
+Every checkpointer write operation (`put`, `putWrites`, `deleteThread`) runs in its own independent root transaction via `cds.tx()`. This is critical when the agent is invoked inside an outboxed service — if the service transaction rolls back on failure, the checkpoint data is **not** affected and remains safely persisted. Your agent's state survives even when the enclosing request does not.
+
 ## Multi-Tenancy
 
 Multi-tenancy is handled automatically when your CAP application uses `@sap/cds-mtxs`. The plugin's entities are deployed into each tenant's isolated database:
