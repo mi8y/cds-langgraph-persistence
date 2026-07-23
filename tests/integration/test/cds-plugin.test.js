@@ -385,6 +385,9 @@ describe("CDS Plugin Integration", () => {
       const cpId = "cp-tx-iso-1";
       const threadId = "thread-tx-iso";
 
+      // plugin disable manual transactions if kind is `sqlite` hence force default kind
+      cds.requires.db.kind = "sql";
+
       try {
         await cds.tx(async () => {
           await saver.put(
@@ -412,6 +415,9 @@ describe("CDS Plugin Integration", () => {
       const cpId = "cp-tx-iso-2";
       const threadId = "thread-tx-iso-2";
       const config = makeConfig(threadId, "", cpId);
+
+      // plugin disable manual transactions if kind is `sqlite` hence force default kind
+      cds.requires.db.kind = "sql";
 
       await saver.put(config, makeCheckpoint(cpId), makeMetadata(), {});
 
@@ -445,6 +451,9 @@ describe("CDS Plugin Integration", () => {
       const saver = new CdsCheckpointSaver({ name: "test" });
       const threadA = "thread-tx-del-a";
       const threadB = "thread-tx-del-b";
+
+      // plugin disable manual transactions if kind is `sqlite` hence force default kind
+      cds.requires.db.kind = "sql";
 
       for (const [tid, cpId] of [
         [threadA, "cp-tx-del-a"],
@@ -483,6 +492,9 @@ describe("CDS Plugin Integration", () => {
       const { Checkpoints } = cds.entities(NS);
       const saver = new CdsCheckpointSaver({ name: "test" });
       const threadId = "thread-tx-chain";
+
+      // plugin disable manual transactions if kind is `sqlite` hence force default kind
+      cds.requires.db.kind = "sql";
 
       try {
         await cds.tx(async () => {

@@ -68,6 +68,17 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
     this.graphName = config.name;
   }
 
+  /**
+   * Runs the function in an independent transaction, so cds outboxed consumption won't rollback the checkpointers
+   */
+  async #execWithTx<T = never>(fn: () => Promise<T>): Promise<T> {
+    if (cds.env.requires.db.kind === "sqlite") {
+      // SQLite does not support parallel transactions, so we just run the function directly.
+      return fn();
+    }
+    return cds.tx(async () => fn());
+  }
+
   async getTuple(config: RunnableConfig): Promise<CheckpointTuple | undefined> {
     if (!config.configurable) {
       throw new Error(`Empty "config.configurable" supplied`);
@@ -348,8 +359,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
     }
 
     const valueDecoder = new TextDecoder("utf-8");
-    // run in an independent transaction, so cds outboxed consumption won't rollback the checkpointers
-    await cds.tx(() =>
+    await this.#execWithTx(async () =>
       UPSERT.into(Checkpoints).entries({
         graphName: this.graphName,
         id: checkpoint.id,
@@ -423,13 +433,13 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
       }),
     );
 
-    // run in an independent transaction, so cds outboxed consumption won't rollback the checkpointers
-    await cds.tx(() => UPSERT.into(CheckpointWrites).entries(pendingWrites));
+    await this.#execWithTx(async () =>
+      UPSERT.into(CheckpointWrites).entries(pendingWrites),
+    );
   }
 
   async deleteThread(threadId: string): Promise<void> {
-    // run in an independent transaction, so cds outboxed consumption won't rollback the checkpointers
-    await cds.tx(async () => {
+    await this.#execWithTx(async () => {
       await DELETE.from(CheckpointWrites).where({
         checkpoint_graphName: this.graphName,
         checkpoint_threadId: threadId,
