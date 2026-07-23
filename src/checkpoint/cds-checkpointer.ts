@@ -18,6 +18,7 @@ import {
   TASKS,
   WRITES_IDX_MAP,
 } from "@langchain/langgraph-checkpoint";
+import cds from "@sap/cds";
 
 /**
  * Configuration for {@link CdsCheckpointSaver}.
@@ -347,23 +348,26 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
     }
 
     const valueDecoder = new TextDecoder("utf-8");
-    await UPSERT.into(Checkpoints).entries({
-      graphName: this.graphName,
-      id: checkpoint.id,
-      namespace: checkpointNamespace,
-      threadId: threadId,
-      parent: parentCheckpointId
-        ? {
-            graphName: this.graphName,
-            id: parentCheckpointId,
-            namespace: checkpointNamespace,
-            threadId: threadId,
-          }
-        : null,
-      type: type1,
-      checkpoint: valueDecoder.decode(serializedCheckpoint),
-      metadata: valueDecoder.decode(serializedMetadata),
-    });
+    // run in an independent transaction, so cds outboxed consumption won't rollback the checkpointers
+    await cds.tx(() =>
+      UPSERT.into(Checkpoints).entries({
+        graphName: this.graphName,
+        id: checkpoint.id,
+        namespace: checkpointNamespace,
+        threadId: threadId,
+        parent: parentCheckpointId
+          ? {
+              graphName: this.graphName,
+              id: parentCheckpointId,
+              namespace: checkpointNamespace,
+              threadId: threadId,
+            }
+          : null,
+        type: type1,
+        checkpoint: valueDecoder.decode(serializedCheckpoint),
+        metadata: valueDecoder.decode(serializedMetadata),
+      }),
+    );
 
     return {
       configurable: {
@@ -419,17 +423,21 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
       }),
     );
 
-    await UPSERT.into(CheckpointWrites).entries(pendingWrites);
+    // run in an independent transaction, so cds outboxed consumption won't rollback the checkpointers
+    await cds.tx(() => UPSERT.into(CheckpointWrites).entries(pendingWrites));
   }
 
   async deleteThread(threadId: string): Promise<void> {
-    await DELETE.from(CheckpointWrites).where({
-      checkpoint_graphName: this.graphName,
-      checkpoint_threadId: threadId,
-    });
-    await DELETE.from(Checkpoints).where({
-      graphName: this.graphName,
-      threadId: threadId,
+    // run in an independent transaction, so cds outboxed consumption won't rollback the checkpointers
+    await cds.tx(async () => {
+      await DELETE.from(CheckpointWrites).where({
+        checkpoint_graphName: this.graphName,
+        checkpoint_threadId: threadId,
+      });
+      await DELETE.from(Checkpoints).where({
+        graphName: this.graphName,
+        threadId: threadId,
+      });
     });
   }
 
