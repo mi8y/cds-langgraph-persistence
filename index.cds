@@ -22,3 +22,19 @@ entity CheckpointWrites {
         type       : String(64);
         value      : LargeString;
 }
+
+entity StoreItems {
+    key namespace  : String(256) not null;
+    key id         : String(256) not null;
+        createdAt  : Timestamp default $now;
+        modifiedAt : Timestamp default $now @cds.on.update: $now;
+        values     : Composition of many StoreItemFields
+                         on values.item = $self;
+}
+
+entity StoreItemFields {
+    key item      : Association to StoreItems;
+    key name      : String(256) not null;
+        value     : String;
+        embedding : Vector;
+}
