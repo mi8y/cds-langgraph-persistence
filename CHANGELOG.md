@@ -1,5 +1,13 @@
 # @mi8y/cds-langgraph-persistence
 
+## 0.6.0
+
+### Minor Changes
+
+- dc848a7: Fix printing `cds add ...` during startup even after running the command
+- 29d4178: Added transaction isolation for checkpointer mutations to avoid rollbacks in case of failure in enclosing CDS request
+- 4a5b484: Add support for purging completed and expired threads. This can be either used as a utility for managed sweeping or as a plugin-managed job for single/multitenant expired checkpoint cleanup. The purge job will skip threads that are in interrupted or in-progress state (i.e. have pending writes) and will only delete threads that are completed and expired.
+
 ## 0.5.0
 
 ### Minor Changes
