@@ -210,6 +210,11 @@ Pick the strategy that fits your use case. For a typical chatbot, scoping by `re
 
 Creates a checkpoint saver instance. `config.name` is a **required** identifier that scopes all checkpoints to a specific graph/agent, preventing collisions when multiple graphs share the same database. Optionally accepts a `SerializerProtocol` for custom serialization (defaults to `JsonPlusSerializer`).
 
+| Config Option | Type     | Description                                                                                                                                                                                                                                                     |
+| ------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | `string` | **Required.** Graph/agent identifier persisted as the `graphName` column, isolating state per graph.                                                                                                                                                            |
+| `ttl`         | `number` | Optional. Time-to-live in milliseconds. When set, each checkpoint receives an `expiresAt = createdAt + ttl` timestamp. A background sweeper deletes threads whose latest checkpoint has expired (see [TTL & Lifecycle Management](#ttl--lifecycle-management)). |
+
 The saver implements the full `BaseCheckpointSaver` from `@langchain/langgraph-checkpoint` interface:
 
 | Method                                           | Description                                                                           |
@@ -236,6 +241,60 @@ In CAP deployments, CDS manages the database connection pool and MTX handles ten
 ### Transaction Isolation
 
 Every checkpointer write operation (`put`, `putWrites`, `deleteThread`) runs in its own independent root transaction via `cds.tx()`. This is critical when the agent is invoked inside an outboxed service — if the service transaction rolls back on failure, the checkpoint data is **not** affected and remains safely persisted. Your agent's state survives even when the enclosing request does not.
+
+### Checkpoint TTL & Lifecycle Management
+
+Checkpoints accumulate on every super-step of a LangGraph workflow. Without cleanup, they grow unbounded. When a graph is configured with a `ttl`, each checkpoint receives an `expiresAt` timestamp (`createdAt + ttl`). A background sweeper then periodically deletes threads whose latest checkpoint has expired.
+
+Add `ttl` to the saver config to attach expiry timestamp to every checkpoint
+
+```ts
+const saver = new CdsCheckpointSaver({
+  name: "my-agent",
+  ttl: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+});
+```
+
+#### Option A: Automatic Background Job Configuration
+
+Then configure the sweep interval for the background sweeper job. The default is `false` i.e. no sweeper runs. Set a number in milliseconds to enable periodic cleanup by the sweeper. The sweep interval can be adjusted in your project's CDS configuration:
+
+```json
+// package.json or .cdsrc.json
+{
+  "cds": {
+    "requires": {
+      "cds-langgraph-persistence": {
+        "checkpointer": {
+          "ttl": {
+            // default 'false'
+            "sweeperInterval": 21600000 // 6 hours in milliseconds
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+> ::Note::
+>
+> - The sweeper runs in the background of your CAP application. It is **not** a separate process or job — it runs in the same Node.js process as your CAP service. If your CAP app is scaled to multiple instances, each instance will run its own sweeper.
+> - In case of multi-tenant setup, the sweeper runs per tenant, cleaning up expired checkpoints in each tenant's isolated database. If you have many tenants, consider the below manual cleanup option using a scheduled job per tenant (using BTP Job Schedule service) to avoid multiple sweeper jobs running concurrently and potentially causing contention on the database.
+
+#### Option B: Manual Cleanup
+
+You can also run the sweeper manually in a scheduled job or via a custom script.
+
+```ts
+import { purgeExpiredCheckpoints } from "@mi8y/cds-langgraph-persistence";
+
+// uses the current tenant context to purge expired checkpoints
+const purgedThreadsInfo = await purgeExpiredCheckpoints();
+console.log(
+  `Purged ${purgedThreadsInfo.expired} expired threads, skipped ${purgedThreadsInfo.skipped} threads due to interrupted or in-progress state`,
+);
+```
 
 ## Multi-Tenancy
 

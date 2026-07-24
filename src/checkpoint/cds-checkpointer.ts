@@ -36,6 +36,23 @@ export type CdsCheckpointSaverConfig = {
    * graph. Use a stable, human-readable value such as `"my-agent"`.
    */
   name: string;
+
+  /**
+   * Time-to-live for checkpoints in milliseconds.
+   *
+   * When set, each checkpoint stored by this saver will receive an `expiresAt`
+   * timestamp (`createdAt + ttl`). A background sweeper (registered via
+   * `cds.spawn()` in the CDS plugin) periodically deletes threads whose
+   * latest checkpoint has expired, provided the thread is not in an
+   * interrupted (human-in-the-loop) state.
+   *
+   * @example
+   * ```ts
+   * // Checkpoints expire after 1 hour of inactivity
+   * const saver = new CdsCheckpointSaver({ name: "my-agent", ttl: 3_600_000 });
+   * ```
+   */
+  ttl?: number;
 };
 
 /**
@@ -358,6 +375,10 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
       );
     }
 
+    const expiresAt = this.config.ttl
+      ? new Date(Date.now() + this.config.ttl).toISOString()
+      : null;
+
     const valueDecoder = new TextDecoder("utf-8");
     await this.#execWithTx(async () =>
       UPSERT.into(Checkpoints).entries({
@@ -376,6 +397,7 @@ export class CdsCheckpointSaver extends BaseCheckpointSaver {
         type: type1,
         checkpoint: valueDecoder.decode(serializedCheckpoint),
         metadata: valueDecoder.decode(serializedMetadata),
+        expiresAt: expiresAt,
       }),
     );
 
