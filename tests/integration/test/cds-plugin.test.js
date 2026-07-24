@@ -1,5 +1,8 @@
 import cds from "@sap/cds";
-import { CdsCheckpointSaver } from "@mi8y/cds-langgraph-persistence";
+import {
+  CdsCheckpointSaver,
+  purgeExpiredCheckpoints,
+} from "@mi8y/cds-langgraph-persistence";
 
 const NS = "plugin.langgraph.persistence";
 
@@ -371,6 +374,291 @@ describe("CDS Plugin Integration", () => {
 
       const resultB = await saver.getTuple(makeConfig(threadId, nsB));
       expect(resultB.metadata.ns).to.equal("beta");
+    });
+  });
+
+  // ── CDS Plugin — TTL & Lifecycle Management ─────────────────────────
+
+  describe("CDS Plugin — expiresAt on put()", () => {
+    beforeEach(cleanup);
+
+    it("put() should set expiresAt when ttl is configured", async () => {
+      const { Checkpoints } = cds.entities(NS);
+      const ttl = 60_000;
+      const saver = new CdsCheckpointSaver({ name: "test-ttl", ttl });
+      const cpId = "cp-ttl-1";
+      const threadId = "thread-ttl-1";
+
+      await saver.put(
+        makeConfig(threadId, "", cpId),
+        makeCheckpoint(cpId),
+        makeMetadata(),
+        {},
+      );
+
+      const rows = await SELECT.from(Checkpoints).where({ id: cpId });
+      expect(rows).to.have.lengthOf(1);
+      expect(rows[0].expiresAt).to.be.a("string");
+
+      const createdAt = new Date(rows[0].createdAt).getTime();
+      const expiresAt = new Date(rows[0].expiresAt).getTime();
+      expect(expiresAt - createdAt).to.be.closeTo(ttl, 5000);
+    });
+
+    it("put() should leave expiresAt null when ttl is not configured", async () => {
+      const { Checkpoints } = cds.entities(NS);
+      const saver = new CdsCheckpointSaver({ name: "test-no-ttl" });
+      const cpId = "cp-no-ttl-1";
+      const threadId = "thread-no-ttl-1";
+
+      await saver.put(
+        makeConfig(threadId, "", cpId),
+        makeCheckpoint(cpId),
+        makeMetadata(),
+        {},
+      );
+
+      const rows = await SELECT.from(Checkpoints).where({ id: cpId });
+      expect(rows).to.have.lengthOf(1);
+      expect(rows[0].expiresAt).to.be.null;
+    });
+  });
+
+  describe("CDS Plugin — purgeExpiredCheckpoints()", () => {
+    beforeEach(cleanup);
+
+    it("should delete expired threads that have no pending writes", async () => {
+      const { Checkpoints } = cds.entities(NS);
+      const graphName = "test-purge-delete";
+      const threadId = "thread-purge-ok";
+      const cpId = "cp-purge-ok";
+      const pastDate = new Date(Date.now() - 60_000).toISOString();
+
+      await INSERT.into(Checkpoints).entries({
+        graphName,
+        id: cpId,
+        namespace: "",
+        threadId,
+        type: "json",
+        checkpoint: JSON.stringify(makeCheckpoint(cpId)),
+        metadata: JSON.stringify(makeMetadata()),
+        expiresAt: pastDate,
+      });
+
+      expect(
+        await SELECT.from(Checkpoints).where({ id: cpId }),
+      ).to.have.lengthOf(1);
+
+      const result = await purgeExpiredCheckpoints();
+
+      expect(result.expired).to.equal(1);
+      expect(result.skipped).to.equal(0);
+      expect(
+        await SELECT.from(Checkpoints).where({ id: cpId }),
+      ).to.have.lengthOf(0);
+    });
+
+    it("should skip expired threads that have pending writes", async () => {
+      const { Checkpoints, CheckpointWrites } = cds.entities(NS);
+      const graphName = "test-purge-skip";
+      const threadId = "thread-purge-skip";
+      const cpId = "cp-purge-skip";
+      const pastDate = new Date(Date.now() - 60_000).toISOString();
+
+      await INSERT.into(Checkpoints).entries({
+        graphName,
+        id: cpId,
+        namespace: "",
+        threadId,
+        type: "json",
+        checkpoint: JSON.stringify(makeCheckpoint(cpId)),
+        metadata: JSON.stringify(makeMetadata()),
+        expiresAt: pastDate,
+      });
+
+      await INSERT.into(CheckpointWrites).entries({
+        checkpoint_graphName: graphName,
+        checkpoint_id: cpId,
+        checkpoint_namespace: "",
+        checkpoint_threadId: threadId,
+        channel: "ch-1",
+        type: "json",
+        value: JSON.stringify("test-value"),
+        taskId: "task-skip",
+        idx: 0,
+      });
+
+      expect(
+        await SELECT.from(Checkpoints).where({ id: cpId }),
+      ).to.have.lengthOf(1);
+
+      const result = await purgeExpiredCheckpoints();
+
+      expect(result.expired).to.equal(0);
+      expect(result.skipped).to.equal(1);
+      expect(
+        await SELECT.from(Checkpoints).where({ id: cpId }),
+      ).to.have.lengthOf(1);
+      expect(
+        await SELECT.from(CheckpointWrites).where({ checkpoint_id: cpId }),
+      ).to.have.lengthOf(1);
+    });
+
+    it("should not delete threads whose expiresAt is in the future", async () => {
+      const { Checkpoints } = cds.entities(NS);
+      const graphName = "test-purge-future";
+      const threadId = "thread-purge-future";
+      const cpId = "cp-purge-future";
+      const futureDate = new Date(Date.now() + 86_400_000).toISOString();
+
+      await INSERT.into(Checkpoints).entries({
+        graphName,
+        id: cpId,
+        namespace: "",
+        threadId,
+        type: "json",
+        checkpoint: JSON.stringify(makeCheckpoint(cpId)),
+        metadata: JSON.stringify(makeMetadata()),
+        expiresAt: futureDate,
+      });
+
+      expect(
+        await SELECT.from(Checkpoints).where({ id: cpId }),
+      ).to.have.lengthOf(1);
+
+      const result = await purgeExpiredCheckpoints();
+
+      expect(result.expired).to.equal(0);
+      expect(result.skipped).to.equal(0);
+      expect(
+        await SELECT.from(Checkpoints).where({ id: cpId }),
+      ).to.have.lengthOf(1);
+    });
+
+    it("should not delete threads with null expiresAt", async () => {
+      const { Checkpoints } = cds.entities(NS);
+      const graphName = "test-purge-null";
+      const threadId = "thread-purge-null";
+      const cpId = "cp-purge-null-no-ttl";
+
+      await INSERT.into(Checkpoints).entries({
+        graphName,
+        id: cpId,
+        namespace: "",
+        threadId,
+        type: "json",
+        checkpoint: JSON.stringify(makeCheckpoint(cpId)),
+        metadata: JSON.stringify(makeMetadata()),
+        expiresAt: null,
+      });
+
+      expect(
+        await SELECT.from(Checkpoints).where({ id: cpId }),
+      ).to.have.lengthOf(1);
+
+      const result = await purgeExpiredCheckpoints();
+
+      expect(result.expired).to.equal(0);
+      expect(result.skipped).to.equal(0);
+      expect(
+        await SELECT.from(Checkpoints).where({ id: cpId }),
+      ).to.have.lengthOf(1);
+    });
+
+    it("should return correct expired and skipped counts for mixed scenario", async () => {
+      const { Checkpoints, CheckpointWrites } = cds.entities(NS);
+      const pastDate = new Date(Date.now() - 60_000).toISOString();
+      const futureDate = new Date(Date.now() + 86_400_000).toISOString();
+
+      // Thread A: expired, no pending writes — should be deleted
+      await INSERT.into(Checkpoints).entries({
+        graphName: "test-purge-mixed",
+        id: "cp-mixed-a",
+        namespace: "",
+        threadId: "thread-mixed-a",
+        type: "json",
+        checkpoint: JSON.stringify(makeCheckpoint("cp-mixed-a")),
+        metadata: JSON.stringify(makeMetadata()),
+        expiresAt: pastDate,
+      });
+
+      // Thread B: expired, HAS pending writes — should be skipped
+      await INSERT.into(Checkpoints).entries({
+        graphName: "test-purge-mixed",
+        id: "cp-mixed-b",
+        namespace: "",
+        threadId: "thread-mixed-b",
+        type: "json",
+        checkpoint: JSON.stringify(makeCheckpoint("cp-mixed-b")),
+        metadata: JSON.stringify(makeMetadata()),
+        expiresAt: pastDate,
+      });
+      await INSERT.into(CheckpointWrites).entries({
+        checkpoint_graphName: "test-purge-mixed",
+        checkpoint_id: "cp-mixed-b",
+        checkpoint_namespace: "",
+        checkpoint_threadId: "thread-mixed-b",
+        channel: "ch-mixed",
+        type: "json",
+        value: JSON.stringify("pending"),
+        taskId: "task-mixed",
+        idx: 0,
+      });
+
+      // Thread C: not expired (future) — should not appear in counts
+      await INSERT.into(Checkpoints).entries({
+        graphName: "test-purge-mixed",
+        id: "cp-mixed-c",
+        namespace: "",
+        threadId: "thread-mixed-c",
+        type: "json",
+        checkpoint: JSON.stringify(makeCheckpoint("cp-mixed-c")),
+        metadata: JSON.stringify(makeMetadata()),
+        expiresAt: futureDate,
+      });
+
+      // Thread D: null expiresAt — should not appear in counts
+      await INSERT.into(Checkpoints).entries({
+        graphName: "test-purge-mixed",
+        id: "cp-mixed-d",
+        namespace: "",
+        threadId: "thread-mixed-d",
+        type: "json",
+        checkpoint: JSON.stringify(makeCheckpoint("cp-mixed-d")),
+        metadata: JSON.stringify(makeMetadata()),
+        expiresAt: null,
+      });
+
+      const result = await purgeExpiredCheckpoints();
+
+      expect(result.expired).to.equal(1);
+      expect(result.skipped).to.equal(1);
+
+      // Thread A deleted
+      expect(
+        await SELECT.from(Checkpoints).where({ threadId: "thread-mixed-a" }),
+      ).to.have.lengthOf(0);
+
+      // Thread B still exists
+      expect(
+        await SELECT.from(Checkpoints).where({ threadId: "thread-mixed-b" }),
+      ).to.have.lengthOf(1);
+
+      // Thread C still exists
+      expect(
+        await SELECT.from(Checkpoints).where({ threadId: "thread-mixed-c" }),
+      ).to.have.lengthOf(1);
+
+      // Thread D still exists
+      expect(
+        await SELECT.from(Checkpoints).where({ threadId: "thread-mixed-d" }),
+      ).to.have.lengthOf(1);
+    });
+
+    it("should handle empty database gracefully", async () => {
+      const result = await purgeExpiredCheckpoints();
+      expect(result.expired).to.equal(0);
+      expect(result.skipped).to.equal(0);
     });
   });
 

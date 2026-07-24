@@ -210,10 +210,10 @@ Pick the strategy that fits your use case. For a typical chatbot, scoping by `re
 
 Creates a checkpoint saver instance. `config.name` is a **required** identifier that scopes all checkpoints to a specific graph/agent, preventing collisions when multiple graphs share the same database. Optionally accepts a `SerializerProtocol` for custom serialization (defaults to `JsonPlusSerializer`).
 
-| Config Option | Type     | Description                                                                                                                                                                                                                                                     |
-| ------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`        | `string` | **Required.** Graph/agent identifier persisted as the `graphName` column, isolating state per graph.                                                                                                                                                            |
-| `ttl`         | `number` | Optional. Time-to-live in milliseconds. When set, each checkpoint receives an `expiresAt = createdAt + ttl` timestamp. A background sweeper deletes threads whose latest checkpoint has expired (see [TTL & Lifecycle Management](#ttl--lifecycle-management)). |
+| Config Option | Type     | Description                                                                                                                                                                            |
+| ------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | `string` | **Required.** Graph/agent identifier persisted as the `graphName` column, isolating state per graph.                                                                                   |
+| `ttl`         | `number` | Optional. Time-to-live in milliseconds. When set, each checkpoint receives an `expiresAt = createdAt + ttl` timestamp. (see [TTL & Lifecycle Management](#ttl--lifecycle-management)). |
 
 The saver implements the full `BaseCheckpointSaver` from `@langchain/langgraph-checkpoint` interface:
 

@@ -96,11 +96,7 @@
   },
   "cds": {
     "requires": {
-      "cds-langgraph-persistence": {
-        "checkpointer": {
-          "ttl": false
-        }
-      }
+      "cds-langgraph-persistence": {}
     }
   }
 }
