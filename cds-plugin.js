@@ -9,7 +9,7 @@ cds.add?.register(
 );
 
 cds.on("loaded", (model) => {
-  if (!model.definitions["plugin.langgraph.persistence"]) {
+  if (!model.definitions["plugin.langgraph.persistence.Checkpoints"]) {
     LOG.warn(
       `Detected '@mi8y/cds-langgraph-persistence' CDS plugin installation, but no entities found in the model. ` +
         `Did you forget to run 'cds add langgraph-persistence' after installing the package?`,
