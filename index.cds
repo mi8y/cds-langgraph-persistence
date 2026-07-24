@@ -10,6 +10,7 @@ entity Checkpoints {
         checkpoint : LargeString not null;
         metadata   : LargeString;
         createdAt  : Timestamp default $now;
+        expiresAt  : Timestamp;
         writes     : Composition of many CheckpointWrites
                          on writes.checkpoint = $self;
 }

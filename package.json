@@ -27,6 +27,7 @@
     "dist/**/*",
     "index.cds",
     "cds-plugin.js",
+    "lib/",
     "LICENSE",
     "package.json",
     "README.md"
@@ -94,6 +95,8 @@
     "provenance": true
   },
   "cds": {
-    "requires": {}
+    "requires": {
+      "cds-langgraph-persistence": {}
+    }
   }
 }

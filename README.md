@@ -210,6 +210,11 @@ Pick the strategy that fits your use case. For a typical chatbot, scoping by `re
 
 Creates a checkpoint saver instance. `config.name` is a **required** identifier that scopes all checkpoints to a specific graph/agent, preventing collisions when multiple graphs share the same database. Optionally accepts a `SerializerProtocol` for custom serialization (defaults to `JsonPlusSerializer`).
 
+| Config Option | Type     | Description                                                                                                                                                                            |
+| ------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | `string` | **Required.** Graph/agent identifier persisted as the `graphName` column, isolating state per graph.                                                                                   |
+| `ttl`         | `number` | Optional. Time-to-live in milliseconds. When set, each checkpoint receives an `expiresAt = createdAt + ttl` timestamp. (see [TTL & Lifecycle Management](#ttl--lifecycle-management)). |
+
 The saver implements the full `BaseCheckpointSaver` from `@langchain/langgraph-checkpoint` interface:
 
 | Method                                           | Description                                                                           |
@@ -236,6 +241,67 @@ In CAP deployments, CDS manages the database connection pool and MTX handles ten
 ### Transaction Isolation
 
 Every checkpointer write operation (`put`, `putWrites`, `deleteThread`) runs in its own independent root transaction via `cds.tx()`. This is critical when the agent is invoked inside an outboxed service — if the service transaction rolls back on failure, the checkpoint data is **not** affected and remains safely persisted. Your agent's state survives even when the enclosing request does not.
+
+### Checkpoint TTL & Lifecycle Management
+
+Checkpoints accumulate on every super-step of a LangGraph workflow. Without cleanup, they grow unbounded. When a graph is configured with a `ttl`, each checkpoint receives an `expiresAt` timestamp (`createdAt + ttl`). You _can_ then run a background sweeper to delete expired checkpoints.
+
+Add `ttl` to the saver config to attach expiry timestamp to every checkpoint
+
+```ts
+const saver = new CdsCheckpointSaver({
+  name: "my-agent",
+  ttl: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+});
+```
+
+> [!IMPORTANT]
+>
+> - Adding `ttl` **does not** automatically delete expired threads. You must run the sweeper to remove them.
+> - Since CAP applications can be either single-tenant or multi-tenant, the sweeper logic is left to the application developer. The plugin provides a utility function `purgeExpiredCheckpoints()` that can be called from a scheduled job or a service endpoint.
+
+For example, you can schedule a background job to sweep expired checkpoints every hour for a single-tenant CAP application:
+
+```ts
+import { purgeExpiredCheckpoints } from "@mi8y/cds-langgraph-persistence";
+
+cds.spawn({ every: 1 * 60 * 60 * 1000 /* 1 hour in millis */ }, async () => {
+  // deletes all checkpoints related to the expired threads except those that are in-progress or interrupted
+  const purgeThreadInfo = await purgeExpiredCheckpoints();
+  console.log(
+    `Swept expired checkpoints: ${purgeThreadInfo.expired} expired threads deleted, ${purgeThreadInfo.skipped} threads skipped due to interrupted or in-progress state`,
+  );
+});
+```
+
+For multi-tenant CAP applications, you can run the sweeper per tenant by iterating over the list of tenants. The following example is just a demonstration. You may want to implement a more robust mechanism using BTP Job Scheduler service for every active tenant.
+
+```ts
+import { purgeExpiredCheckpoints } from "@mi8y/cds-langgraph-persistence";
+
+const provisioning = await cds.connect.to("cds.xt.SaasProvisioningService");
+const result = await provisioning.send({
+  method: "GET",
+  path: "/tenant",
+});
+const tenantIds = (result?.value ?? []).map(
+  (tenant) => tenant.subscribedTenantId,
+);
+for (const tenantId of tenantIds) {
+  cds
+    .spawn({ user: cds.user.Privileged, tenant: tenantId }, async () => {
+      const purgeThreadInfo = await purgeExpiredCheckpoints();
+      LOG.info(
+        `Swept expired checkpoints for tenant ${tenantId}: ${purgeThreadInfo.expired} expired threads deleted, ${purgeThreadInfo.skipped} threads skipped due to interrupted or in-progress state`,
+      );
+    })
+    .on("failed", (err) => {
+      LOG.error(
+        `Error occurred while sweeping expired checkpoints for tenant ${tenantId}: ${err.message}`,
+      );
+    });
+}
+```
 
 ## Multi-Tenancy
 
