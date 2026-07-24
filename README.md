@@ -277,7 +277,7 @@ Then configure the sweep interval for the background sweeper job. The default is
 }
 ```
 
-> ::Note::
+> [!WARNING]
 >
 > - The sweeper runs in the background of your CAP application. It is **not** a separate process or job — it runs in the same Node.js process as your CAP service. If your CAP app is scaled to multiple instances, each instance will run its own sweeper.
 > - In case of multi-tenant setup, the sweeper runs per tenant, cleaning up expired checkpoints in each tenant's isolated database. If you have many tenants, consider the below manual cleanup option using a scheduled job per tenant (using BTP Job Schedule service) to avoid multiple sweeper jobs running concurrently and potentially causing contention on the database.
