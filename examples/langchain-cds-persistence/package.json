@@ -16,16 +16,5 @@
   },
   "scripts": {
     "start": "cds-serve"
-  },
-  "cds": {
-    "requires": {
-      "cds-langgraph-persistence": {
-        "checkpointer": {
-          "ttl": {
-            "sweepIntervalMs": 10000
-          }
-        }
-      }
-    }
   }
 }

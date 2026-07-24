@@ -11,7 +11,7 @@ export class AgentService extends cds.ApplicationService {
     // agent 'checkpointer' configuration
     const checkpointSaver = new CdsCheckpointSaver({
       name: agentName,
-      ttl: 30 * 1000, // 30 seconds in milliseconds
+      ttl: 30 * 1000, // 30 seconds - for production use higher value for retention policies (e.g. 30 days)
     });
 
     // 'agent' configuration

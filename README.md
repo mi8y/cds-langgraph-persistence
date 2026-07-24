@@ -244,7 +244,7 @@ Every checkpointer write operation (`put`, `putWrites`, `deleteThread`) runs in 
 
 ### Checkpoint TTL & Lifecycle Management
 
-Checkpoints accumulate on every super-step of a LangGraph workflow. Without cleanup, they grow unbounded. When a graph is configured with a `ttl`, each checkpoint receives an `expiresAt` timestamp (`createdAt + ttl`). A background sweeper then periodically deletes threads whose latest checkpoint has expired.
+Checkpoints accumulate on every super-step of a LangGraph workflow. Without cleanup, they grow unbounded. When a graph is configured with a `ttl`, each checkpoint receives an `expiresAt` timestamp (`createdAt + ttl`). You _can_ then run a background sweeper to delete expired checkpoints.
 
 Add `ttl` to the saver config to attach expiry timestamp to every checkpoint
 
@@ -255,45 +255,52 @@ const saver = new CdsCheckpointSaver({
 });
 ```
 
-#### Option A: Automatic Background Job Configuration
-
-Then configure the sweep interval for the background sweeper job. The default is `false` i.e. no sweeper runs. Set a number in milliseconds to enable periodic cleanup by the sweeper. The sweep interval can be adjusted in your project's CDS configuration:
-
-```json
-// package.json or .cdsrc.json
-{
-  "cds": {
-    "requires": {
-      "cds-langgraph-persistence": {
-        "checkpointer": {
-          "ttl": {
-            // default 'false'
-            "sweeperInterval": 21600000 // 6 hours in milliseconds
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-> [!WARNING]
+> [!IMPORTANT]
 >
-> - The sweeper runs in the background of your CAP application. It is **not** a separate process or job — it runs in the same Node.js process as your CAP service. If your CAP app is scaled to multiple instances, each instance will run its own sweeper.
-> - In case of multi-tenant setup, the sweeper runs per tenant, cleaning up expired checkpoints in each tenant's isolated database. If you have many tenants, consider the below manual cleanup option using a scheduled job per tenant (using BTP Job Schedule service) to avoid multiple sweeper jobs running concurrently and potentially causing contention on the database.
+> - Adding `ttl` **does not** automatically delete expired threads. You must run the sweeper to remove them.
+> - Since CAP applications can be either single-tenant or multi-tenant, the sweeper logic is left to the application developer. The plugin provides a utility function `purgeExpiredCheckpoints()` that can be called from a scheduled job or a service endpoint.
 
-#### Option B: Manual Cleanup
-
-You can also run the sweeper manually in a scheduled job or via a custom script.
+For example, you can schedule a background job to sweep expired checkpoints every hour for a single-tenant CAP application:
 
 ```ts
 import { purgeExpiredCheckpoints } from "@mi8y/cds-langgraph-persistence";
 
-// uses the current tenant context to purge expired checkpoints
-const purgedThreadsInfo = await purgeExpiredCheckpoints();
-console.log(
-  `Purged ${purgedThreadsInfo.expired} expired threads, skipped ${purgedThreadsInfo.skipped} threads due to interrupted or in-progress state`,
+cds.spawn({ every: 1 * 60 * 60 * 1000 /* 1 hour in millis */ }, async () => {
+  // deletes all checkpoints related to the expired threads except those that are in-progress or interrupted
+  const purgeThreadInfo = await purgeExpiredCheckpoints();
+  console.log(
+    `Swept expired checkpoints: ${purgeThreadInfo.expired} expired threads deleted, ${purgeThreadInfo.skipped} threads skipped due to interrupted or in-progress state`,
+  );
+});
+```
+
+For multi-tenant CAP applications, you can run the sweeper per tenant by iterating over the list of tenants. The following example is just a demonstration. You may want to implement a more robust mechanism using BTP Job Scheduler service for every active tenant.
+
+```ts
+import { purgeExpiredCheckpoints } from "@mi8y/cds-langgraph-persistence";
+
+const provisioning = await cds.connect.to("cds.xt.SaasProvisioningService");
+const result = await provisioning.send({
+  method: "GET",
+  path: "/tenant",
+});
+const tenantIds = (result?.value ?? []).map(
+  (tenant) => tenant.subscribedTenantId,
 );
+for (const tenantId of tenantIds) {
+  cds
+    .spawn({ user: cds.user.Privileged, tenant: tenantId }, async () => {
+      const purgeThreadInfo = await purgeExpiredCheckpoints();
+      LOG.info(
+        `Swept expired checkpoints for tenant ${tenantId}: ${purgeThreadInfo.expired} expired threads deleted, ${purgeThreadInfo.skipped} threads skipped due to interrupted or in-progress state`,
+      );
+    })
+    .on("failed", (err) => {
+      LOG.error(
+        `Error occurred while sweeping expired checkpoints for tenant ${tenantId}: ${err.message}`,
+      );
+    });
+}
 ```
 
 ## Multi-Tenancy
